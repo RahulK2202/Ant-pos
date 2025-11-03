@@ -180,6 +180,29 @@
                     :disabled="false"
                 />     
             </div>
+
+            <!-- Sales Partner -->  
+            <div>
+                <Autocomplete
+                class="p-2"
+                :options="salesPartnersResource.data"
+                v-model="selectedSalesPartner"
+                placeholder="Select Sales Partner"
+                @update:query="onSalesPartnerSearch"
+            />
+
+            </div> 
+
+            <div>
+            <!-- Sales Person -->
+            <Autocomplete
+            class="p-2"
+            :options="salesPersons.data?.map(p => ({ label: p.name, value: p.name })) || []"
+            v-model="selectedSalesPerson"
+            placeholder="Select Sales Person"
+            />
+            </div>
+
         </div>
         <div class="h-[14%] w-full mt-2 flex flex-col gap-2 ">
             <div class="h-1/2 ">
@@ -229,7 +252,8 @@
 </template>
 
 <script setup>
-import { Button, FormControl, createResource, DatePicker, dayjsLocal  } from 'frappe-ui'
+import { Button, FormControl,createListResource, createResource, DatePicker, dayjsLocal  } from 'frappe-ui'
+import Autocomplete from '@/components/custom_components/Autocomplete.vue';
 import { ref, onMounted , watch, computed } from 'vue'
 import { createToast } from '@/utils';
 import { showToast } from '@/utils'
@@ -255,6 +279,63 @@ const addPayments = () => {
         }
     })
 }
+
+
+// sales person and sales partner
+
+const selectedSalesPartner = ref(
+  invoiceStore.invoice.sales_partner
+    ? { label: invoiceStore.invoice.sales_partner, value: invoiceStore.invoice.sales_partner }
+    : null
+)
+
+const selectedSalesPerson = ref(
+  invoiceStore.invoice.sales_partner
+    ? { label: invoiceStore.invoice.sales_person, value: invoiceStore.invoice.sales_person }
+    : null
+)
+
+
+const salesPartnersResource = createListResource({
+  doctype: 'Sales Partner',
+  fields: ['name'],
+  orderBy: 'creation desc',
+pageLength: Number.MAX_VALUE * 2,
+  auto: false,
+  transform: (data) => data.map(p => ({ label: p.name, value: p.name })),
+})
+
+async function onSalesPartnerSearch(query = '') {
+  await salesPartnersResource.fetch({
+    filters: query ? [['name', 'like', `%${query}%`]] : [],
+    pageLength: 20,
+  })
+}
+
+
+const salesPersons = createListResource({
+  doctype: 'Sales Person',
+  fields: ['name'],
+  orderBy: 'creation desc',
+  auto: true
+})
+
+watch(selectedSalesPartner, (newValue) => {
+  invoiceStore.invoice.sales_partner = newValue?.value || ''
+})
+
+
+watch(selectedSalesPerson, (newValue) => {
+
+  invoiceStore.invoice.sales_team = newValue?.value
+    ? [{
+        sales_person: newValue.value,  
+        allocated_percentage: 100,   
+      }]
+    : []
+})
+
+
 
 const changemode = (index) => {
     invoiceStore.invoice.payments.forEach((element, i) => {
@@ -499,5 +580,8 @@ watch(
 
 onMounted(() => {
     addPayments()
+     onSalesPartnerSearch('');
 })
 </script>
+
+
